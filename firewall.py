@@ -1,48 +1,59 @@
-#!/bin/env python
-from piptables import *
+##############################
+# AN EXAMPLE FIREWALL SCRIPT #
+##############################
+from blacksalt import BlackSalt
+iptables = BlackSalt()
+# When creating a BlackSalt instance you can pass in a dictionary
+# of arguments, the allowed arguments are:
+#   {
+#       "iptables": "BIN LOCATION HERE", // This defaults to /sbin/iptables
+#       "printmode": True or False,      // This defaults to True and will print the rules
+#                                        // to stdout when generating the tables.
+#       "scriptfile": "Name and location of file" // If set, generating rule will output
+#                                                 // to this file
+#   }
+# These can be set after creation, by just setting the variables i.e.
+# iptables.printmode = False
+# iptables.scriptfile = "/usr/local/scripts/firewall"
+# iptables.iptables = "/usr/local/bin/iptables"
+#
 
-#Define our internal subnets
+
 SUBNETS = ["172.16.10.0/24", "172.17.10.0/24", "172.19.10.0/24"]
-#Define some services
 SERVICES = {"SSH": "22", "SMTP": "25", "HTTP": "80", "MYSQL": "3306"}
-#Print Mode
+# Flush tables
+iptables.flush()
+# Set default policies
+iptables.policy([("input", "drop"), ("output", "accept"), ("forward", "drop")])
+# Allow everything on loop back interface
+iptables.setrule({"chain": "input", "interface": ("in", "lo"), "action": "accept"})
+iptables.setrule({"chain": "output", "interface": ("out", "lo"), "action": "accept"})
 
-#Flush the chains and tables
-flush("tables")
-flush("chains")
-
-#Set the default policies
-setpol(("INPUT", "DROP"))
-setpol(("OUTPUT", "ACCEPT"))
-setpol(("FORWARD", "DROP"))
-
-#Allow Loopback
-setrule({"chain": "input", "interface": ("in", "lo"), "action": "accept"})
-setrule({"chain": "output", "interface": ("out", "lo"), "action": "accept"})
-
-#Allow everything on local subnets
+# Allow everything on local subnets
 for subnet in SUBNETS:
-    setrule({"chain": "input", "interface": ("in", "eth0"), "subnet": subnet,
+    iptables.setrule({"chain": "input", "interface": ("in", "eth0"), "subnet": subnet,
              "action": "accept", "state": ["new", "related", "established"]})
-    setrule({"chain": "output", "interface": ("out", "eth0"), "subnet": subnet,
+    iptables.setrule({"chain": "output", "interface": ("out", "eth0"), "subnet": subnet,
              "action": "accept", "state": ["new", "related", "established"]})
 
-#Allow everything coming from estores
-setrule({"chain": "input", "interface": ("in", "eth0"), "action": "accept",
+# Allow everything coming from estores
+iptables.setrule({"chain": "input", "interface": ("in", "eth0"), "action": "accept",
          "subnet": "69.10.153.3", "state": ["new", "established", "related"]})
 
-#Allow ICMP
-setrule({"chain": "input", "interface": ("in", "eth0"), "action": "accept",
+# Allow ICMP Ping
+iptables.setrule({"chain": "input", "interface": ("in", "eth0"), "action": "accept",
          "state": ["new", "related", "established"], "icmp": "8"})
 
-#Allow all ESTABLISHED, RELATED connections going out
-setrule({"chain": "output", "interface": ("out", "eth0"),
+# Allow all ESTABLISHED, RELATED connections going out
+iptables.setrule({"chain": "output", "interface": ("out", "eth0"),
          "state": ["established", "related"], "action": "accept"})
 
-
-#Allow all HTTP connections going in in
-setrule({"chain": "input", "interface": ("in", "eth0"), "dst-port": "80",
+# Allow all HTTP connections going in in
+iptables.setrule({"chain": "input", "interface": ("in", "eth0"), "dst-port": "80",
          "state": ["new", "established", "related"], "action": "accept"})
 
-#Drop all NEW connections coming in
-setrule({"chain": "input", "interface": ("in", "eth0"), "state": ["new"], "action": "drop"})
+# Drop all NEW connections coming in
+iptables.setrule({"chain": "input", "interface": ("in", "eth0"), "state": ["new"], "action": "drop"})
+
+# Generate the script
+iptables.generate()
