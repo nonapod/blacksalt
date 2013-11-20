@@ -8,7 +8,7 @@
 # when run, including showing running IPTables rules and easy modification
 # of running rules etc. Rules can range from simple to complex.
 import os
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 class BlackSalt():
