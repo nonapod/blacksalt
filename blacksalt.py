@@ -1,39 +1,52 @@
-#	BLACKSALT
-#	Author: 	Leslie.A.Cordell
-#	CreationDate:	2013/11/18
-#	ModifiedDate:	2013/11/18
-#
-# This little helper library will allow the user to create easier
-# iptables rules, it will also allow IPTables management
-# when run, including showing running IPTables rules and easy modification
-# of running rules etc. Rules can range from simple to complex.
-#
-#The MIT License (MIT)
-#
-#Copyright (c) 2013 Leslie.A.Cordell
-#
-#Permission is hereby granted, free of charge, to any person obtaining a copy
-#of this software and associated documentation files (the "Software"), to deal
-#in the Software without restriction, including without limitation the rights
-#to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#copies of the Software, and to permit persons to whom the Software is
-#furnished to do so, subject to the following conditions:
-#
-#The above copyright notice and this permission notice shall be included in
-#all copies or substantial portions of the Software.
-#
-#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-#THE SOFTWARE.
+"""
+BLACKSALT
+Author: 	Leslie.A.Cordell
+CreationDate:	2013/11/18
+ModifiedDate:	2013/11/18
+
+
+The MIT License (MIT)
+
+Copyright (c) 2013 Leslie.A.Cordell
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+"""
 
 import os
+import re
 __version__ = "0.2.0"
 
 
+###############
+# ERROR TYPES #
+###############
+class RuleError(Exception):
+    pass
+
+
+class IPTablesError(Exception):
+    pass
+
+
+#############
+# BLACKSALT #
+#############
 class BlackSalt():
     """
     This is the main class, whenever blacksalt is to be run, this class is
@@ -45,7 +58,7 @@ class BlackSalt():
     ##############
     # INITIALIZE #
     ##############
-    def __init__(self, params=None):
+    def __init__(self, **kwargs):
         """
         Initialisation; The parameters will be in the form of a dictionary,
         if certain parameters aren't passed we'll set default parameters
@@ -62,19 +75,18 @@ class BlackSalt():
         self.delete = self.rm = self.remove
         self.create = self.generate
         self.setpol = self.pol = self.policy
-        if type(params) == dict:
-            # If we have an iptables parameter store it as our IPTABLES bin location
-            if "iptables" in params:
-                self.iptables = params["iptables"]
-            # Always default to true for printmode, unless we have a false parameter
-            if "printmode" in params:
-                self.printmode = params["printmode"]
-            # If we get a scriptfile parameter, we'll write our firewall output to here
-            # for the user.
-            if "scriptfile" in params:
-                self.scriptfile = params["scriptfile"]
+        # If we have an iptables parameter store it as our IPTABLES bin location
+        if "iptables" in kwargs:
+            self.iptables = kwargs["iptables"]
+        # Always default to true for printmode, unless we have a false parameter
+        if "printmode" in kwargs:
+            self.printmode = kwargs["printmode"]
+        # If we get a scriptfile parameter, we'll write our firewall output to here
+        # for the user.
+        if "scriptfile" in kwargs:
+            self.scriptfile = kwargs["scriptfile"]
 
-    # Change default print
+    # Change default print to similar format: <BlackSalt v0.2.0: 0 rules defined>
     def __repr__(self):
         _ruleslen = len(self.rules)
         if _ruleslen == 1:
@@ -131,10 +143,10 @@ class BlackSalt():
             return
 
         else:
-            print "Parameter must be a string or list. i.e 'chains' or 'tables' will flush these."
-            print "A string that is not 'chains' or 'tables' will be treated as a specific chain to flush."
-            print "A list of strings will create rules to flush these as chains individually or if"
-            print "'tables' or 'chains' are included in this list, they will be flushed also."
+            print """Parameter must be a string or list. i.e 'chains' or 'tables' will flush these.
+            A string that is not 'chains' or 'tables' will be treated as a specific chain to flush.
+            A list of strings will create rules to flush these as chains individually or if
+            'tables' or 'chains' are included in this list, they will be flushed also."""
 
     ###########
     #LAST RULE#
@@ -494,3 +506,360 @@ class BlackSalt():
             self.rule = _rule
             self.rules.append(self.rule)
             return
+
+
+class Rule():
+    """
+    This class will generate a new rule for us, we'll pass it parameters,
+    depending on the parameters of the rule, the output function for the
+    rule will change. An object of initializing parameters will be passed
+    to create the rule
+    """
+    def __init__(self, **kwargs):
+        self.protocol = None  # i.e tcp, udp, icmp
+        self.protocols = ["tcp", "udp", "icmp"]  # The 3 default protocols
+        self.interface = {"name": None, "direction": None}
+        self.dst_port = None
+        self.src_port = None
+        self.subnet = None
+        self.state = None  # Loads (-m state) module, accepts list like ["new", "established", "related"]#
+        self.chain = None
+        self.icmp = None  # This should be an int for ICMP code
+        self.target = None  # ACCEPT, DROP, QUEUE, RETURN
+        self.protocolsfile = "C:\\windows\\System32\\drivers\\etc\\protocol" or "/etc/protocols"
+        #: Set the default protocols
+        self.set_default_protocols()
+        #: Set the rules
+        self.setup(**kwargs)
+
+    def __repr__(self):
+        return "<BlackSalt Rule>"
+
+    ##########
+    # SET UP #
+    ##########
+    def setup(self, **kwargs):
+        """
+        @summary:  This is called on initialisation, the kwargs are forwarded
+                   to this function which sets the rule up. It can also be used
+                   again to reset or reinitialise the rule.
+        @rtype: None
+        @param **kwargs: protocol, interface, subnet, state, dst_port, src_port
+                         chain, icmp, target
+        """
+        if "protocol" in kwargs:
+            self.set_protocol(kwargs["protocol"])
+        if "interface" in kwargs:
+            self.set_interface(kwargs["interface"])
+        if "dst" in kwargs:
+            self.set_port(dst=kwargs["dst"])
+        if "src" in kwargs:
+            self.set_port(src=kwargs["src"])
+        if "subnet" in kwargs:
+            self.set_subnet(kwargs["subnet"])
+        if "state" in kwargs:
+            self.set_state(kwargs["state"])
+        if "chain" in kwargs:
+            self.set_chain(kwargs["chain"])
+        if "icmp" in kwargs:
+            self.set_icmp(kwargs["icmp"])
+        if "target" in kwargs:
+            self.set_target(kwargs["target"])
+
+    ###########
+    # PREVIEW #
+    ###########
+    def preview(self):
+        """
+        @summary: Simple print rule params to screen
+        @rtype: None
+        @param: None
+        """
+        print "protocol: %s" % self.protocol
+        print "interface: %s" % self.interface
+        print "dst_port: %s" % self.dst_port
+        print "src_port: %s" % self.src_port
+        print "subnet: %s" % self.subnet
+        print "state: %s" % self.state
+        print "chain: %s" % self.chain
+        print "icmp: %s" % self.icmp
+        print "target: %s" % self.target
+        return
+
+    #########################
+    # SET DEFAULT PROTOCOLS #
+    #########################
+    def set_default_protocols(self):
+        """
+        @summary: This function takes no arguments, instead it takes the protocolsfile
+                  address and tries to open it if it exists. It will pass it and try to
+                  pull out valid protocols, these can be used when specifying a rule.
+                  They will be appended to the current list of allowed protocols
+        @rtype: None
+        @param: None
+        """
+        if os.path.exists(self.protocolsfile) and os.access(self.protocolsfile, os.R_OK):
+            _protocolsfile = open(self.protocolsfile, 'r').readlines()
+            for _line in _protocolsfile:
+                if _line[0] not in ["#", "\w", "\n"]:
+                    _allowedprotocol = _line.split(" ")[0]
+                    if _allowedprotocol not in self.protocols:
+                        self.protocols.append(_allowedprotocol)
+        else:
+            return
+
+    ##########################
+    # SET RULE PROTOCOL TYPE #
+    ##########################
+    def set_protocol(self, opts=None):
+        """
+        @summary: Sets the protocol to be used, it requires that the protocol is in the default
+                  protocols which is collected from the system or tcp, udp or icmp
+        @rtype: None
+        @param opts: str
+        """
+        if type(opts) == str:
+            if opts in self.protocols:
+                self.protocol = opts
+            else:
+                print "protocol must be a valid protocol: %s" % ", ".join(self.protocols)
+        else:
+            print "protocol must be a string i.e. 'tcp'"
+            return
+
+    ####################
+    # SET SRC/DST PORT #
+    ####################
+    def set_port(self, **kwargs):
+        """
+        @summary: Set the destination port, set the source port to None.
+                  The argument must be dst=80 or src=80 etc
+        @rtype: None
+        @param **kwargs: dst=str/int, src=str/int
+        """
+        #: If we get a destination port
+        if "dst" in kwargs:
+            if kwargs["dst"] is None:
+                self.dst_port = None
+
+            if type(kwargs["dst"]) == str:
+                try:
+                    #: Try to convert the argument to an int
+                    kwargs["dst"] = int(kwargs["dst"])
+                except TypeError:
+                    raise RuleError("dst option must be an integer or a string integer")
+
+            if type(kwargs["dst"]) == int:
+                #: Set the dst_port to the port number and set src_port to blank
+                self.dst_port = kwargs["dst"]
+
+        #: If we get a source port
+        elif "src" in kwargs:
+            if kwargs["src"] is None:
+                self.src_port = None
+            if type(kwargs["src"]) == str:
+                try:
+                    #: Try to convert the argument to an int
+                        kwargs["src"] = int(kwargs["src"])
+                except TypeError:
+                    raise RuleError("src option must be an integer or a string integer")
+
+            if type(kwargs["src"]) == int:
+                #: Set the dst_port to the port number and set src_port to blank
+                self.src_port = kwargs["src"]
+
+        #: If we get an unknown kwarg, show an error
+        else:
+            raise RuleError("""Keyword arguments must be either dst=PORT and/or src=PORT,
+            value must be an integer or integer string or None """)
+
+    ##############
+    # SET SUBNET #
+    ##############
+    def set_subnet(self, subnet):
+        """
+        @summary: Set subnet for this rule, it accepts only a string and must match proper
+                  subnetting format:
+                  xxx.xxx.xxx.xxx
+                  xxx.xxx.xxx.xxx/24
+                  xxx.xxx.xxx.xxx/xxx.xxx.xxx.xxx.xxx
+        @rtype: None
+        @param subnet: str
+        """
+        #_maxmask = "([01][0-9][0-9]|2[0-4][0-9]|25[0-5])" # 1-255
+        _maxmask = "([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])"  # 1-255
+        _maxcidr = "([1-9]|1[0-9]|2[0-4])"  # 1-24
+        _netmatch = "%s\.%s\.%s\.%s" % (_maxmask, _maxmask, _maxmask, _maxmask)  # 1-255.1-255.1-255.1-255
+        _patterns = [
+            re.compile("^%s$" % _netmatch),
+            re.compile("^%s\/%s$" % (_netmatch, _netmatch)),
+            re.compile("^%s\/%s$" % (_netmatch, _maxcidr))
+        ]
+        if type(subnet) == str:
+            #: If our subnet is a string and it matches one of our patterns, then set the subnet
+            for _pattern in _patterns:
+                if re.match(_pattern, subnet):
+                    self.subnet = subnet
+                    return
+            #: If we don't match a pattern, return an error and set subnet to false
+            raise RuleError("""Subnet must match the following patterns:
+            1-255.1-255.1-255    i.e. 172.16.10.23
+            1-255.1-255.1-255/1-24   i.e. 172.16.10.0/24
+            1-255.1-255.1-255/1-255.1-255.1-255.1-255    i.e 172.16.10.0/255.255.255.0""")
+
+    #############
+    # SET STATE #
+    #############
+    def set_state(self, param):
+        """
+        @summary: This sets the allowed states, it accepts NEW, ESTABLISHED, RELATED,
+                  INVALID as states. It can take in a string for one state, a
+                  comma delimited string, or a list of states.
+        @rtype: None
+        @param param: str or list
+        """
+        _allowed = ["new", "established", "related", "invalid"]
+        self.state = []
+        #: If we get a string, split it by comma and re-run the function
+        if type(param) == str:
+            self.set_state(param.split(","))
+        #: If we get a list, check parameter against allowed and add them to state
+        elif type(param) == list:
+            for _state in param:
+                if type(_state) == str and _state.lower() in _allowed:
+                    self.state.append(_state.replace(" ", ""))
+
+            return
+        else:
+            raise RuleError("Invalid State Format; must be string, a comma delimited string or list")
+
+    #############
+    # SET CHAIN #
+    #############
+    def set_chain(self, param):
+        """
+        @summary: This sets the chain of the rule. If the chain is input, it will
+                  automatically set the interface direction to -i, and for output
+                  it will set it to -o as these are the only valid directions for
+                  the chains. Default chains are INPUT, OUTPUT, FORWARD. But others
+                  may be specified.
+        @rtype: None
+        @param param: str, list or comma delimited str
+        """
+        _default = ["INPUT", "OUTPUT", "FORWARD"]
+        if type(param) == str:
+            #: If the chain is in the list of defaults add it as uppercase
+            if param.upper() in _default:
+                self.chain = param.upper()
+                #: If the chain is input, set the interface direction to -i
+                if self.chain and self.chain == "INPUT":
+                    if type(self.interface) == dict:
+                        self.interface["direction"] = "in"
+                    else:
+                        self.interface = {"name": None, "direction": "in"}
+
+                #: If the chain is output, set the interface direction to -o
+                if self.chain and self.chain == "OUTPUT":
+                    if type(self.interface) == dict:
+                        self.interface["direction"] = "out"
+                    else:
+                        self.interface = {"name": None, "direction": "out"}
+            return
+        raise RuleError("Chain must be a string")
+
+    ############
+    # SET ICMP #
+    ############
+    def set_icmp(self, param):
+        """
+        @summary: This simply sets the icmp protocol. Setting this will
+                  adjust the presentation of the rule.
+        @rtype : None
+        @type param: int (1-40 for valid or 41-255 for reserved ICMP protocol)
+        """
+        _valid = range(1, 40)
+        _reserved = range(41, 255)
+
+        if type(param) == int:
+            #: If our code is in the valid range; set icmp
+            if param in _valid:
+                self.icmp = param
+                return
+            if param in _reserved:
+            #: If our code is in the reserved range; warn, set icmp
+                self.icmp = param
+                self.warn("You are using a reserved ICMP code; %s" % param)
+                return
+
+        return RuleError("ICMP must be an int from 1-40 or 41,255 for reserved")
+
+    ##############
+    # SET TARGET #
+    ##############
+    def set_target(self, param):
+        """
+        @summary: This will set the target or action for the rule
+                  extentions can allow for other targets, a warning
+                  is raised if a default rule isn't used, but an
+                  exception is not raised.
+        @rtype: None
+        @param param: Case-insensitive String for target or action:
+                      ACCEPT, DROP, QUEUE or RETURN
+        """
+        _default = ["ACCEPT", "DROP", "QUEUE", "RETURN"]
+        if type(param) == str:
+            if param.upper() in _default:
+                self.target = param.upper()
+            else:
+                self.target = param
+                self.warn("Using a non default target %s" % param)
+            return
+
+        raise RuleError("Target must be a string")
+
+    #################
+    # SET INTERFACE #
+    #################
+    def set_interface(self, params):
+        """
+        @summary: Set interface takes in a dict with "name" and "direction".
+                  If 'out' is set as direction, but INPUT is set as the chain,
+                  it is changed to 'in' If 'in' is set as the direction, but
+                  OUTPUT is the chain, it is changed to 'out'. For the forward
+                  chain or custom chains, this is ignored.
+        @rtype: None
+        @param params: dict {"name": "eth1", "direction": "in"}
+        """
+        _directions = ["in", "out"]
+
+        if type(params) == dict:
+            #: If we get a name and a direction
+            if "name" in params and "direction" in params:
+                if type(params["name"]) == str and type(params["direction"]) == str:
+                    #: Make sure the name and directions are strings and the direction is valid.
+                    if params["direction"] not in _directions:
+                        raise RuleError("Invalid direction passed to interface; must be 'in' or 'out'")
+                    #: Set the interface
+                    self.interface = {"name": params["name"], "direction": params["direction"]}
+                    #: If the chain is INPUT set direction to in
+                    if self.chain and self.chain.upper() == "INPUT":
+                        self.interface["direction"] = "in"
+                    #: If the chain is OUTPUT set the direction to out
+                    elif self.chain and self.chain.upper() == "OUTPUT":
+                        self.interface["direction"] = "out"
+                    return
+
+            raise RuleError("set_interface needs to be called with a dictionary {'name': str, 'direction': str}")
+
+        raise RuleError("set_interface needs to be called with a dictionary {'name': str, 'direction': str}")
+
+    ########
+    # WARN #
+    ########
+    def warn(self, msg):
+        """
+        @summary: Very simple function to print a warning
+        @rtype: None
+        @param msg: str (a warning message)
+        """
+        print "Warning: %s" % msg
