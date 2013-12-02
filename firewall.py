@@ -19,7 +19,7 @@ iptables = BlackSalt()
 #
 
 
-SUBNETS = ["172.16.10.0/24", "172.17.10.0/24", "172.19.10.0/24"]
+SUBNETS = ["192.168.10.0/24", "192.168.11.0/24", "192.168.12.0/24"]
 SERVICES = {"SSH": "22", "SMTP": "25", "HTTP": "80", "MYSQL": "3306"}
 # Flush tables
 iptables.flush()
