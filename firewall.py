@@ -26,34 +26,34 @@ iptables.flush()
 # Set default policies
 iptables.policy([("input", "drop"), ("output", "accept"), ("forward", "drop")])
 # Allow everything on loop back interface
-iptables.setrule({"chain": "input", "interface": ("in", "lo"), "action": "accept"})
-iptables.setrule({"chain": "output", "interface": ("out", "lo"), "action": "accept"})
+iptables.setrule(chain="input", interface={"name": "lo", "direction": "in"}, target="accept")
+iptables.setrule(chain="output", interface={"name": "lo", "direction": "out"}, target="accept")
 
 # Allow everything on local subnets
 for subnet in SUBNETS:
-    iptables.setrule({"chain": "input", "interface": ("in", "eth0"), "subnet": subnet,
-             "action": "accept", "state": ["new", "related", "established"]})
-    iptables.setrule({"chain": "output", "interface": ("out", "eth0"), "subnet": subnet,
-             "action": "accept", "state": ["new", "related", "established"]})
+    iptables.setrule(chain="input", interface={"direction": "in", "name": "eth0"}, subnet=subnet,
+                     target="accept", state="new, related, established")
+    iptables.setrule(chain="output", interface={"direction": "out", "name": "eth0"}, subnet=subnet,
+                     target="accept", state="new, related, established")
 
 # Allow everything coming from estores
-iptables.setrule({"chain": "input", "interface": ("in", "eth0"), "action": "accept",
-         "subnet": "69.10.153.3", "state": ["new", "established", "related"]})
+iptables.setrule(chain="input", interface={"direction": "in", "name": "eth0"}, target="accept",
+                 subnet="69.10.153.3", state="new, established, related")
 
 # Allow ICMP Ping
-iptables.setrule({"chain": "input", "interface": ("in", "eth0"), "action": "accept",
-         "state": ["new", "related", "established"], "icmp": "8"})
+iptables.setrule(chain="input", interface={"direction": "in", "name": "eth0"}, target="accept",
+                 state="new, related, established", icmp=8)
 
 # Allow all ESTABLISHED, RELATED connections going out
-iptables.setrule({"chain": "output", "interface": ("out", "eth0"),
-         "state": ["established", "related"], "action": "accept"})
+iptables.setrule(chain="output", interface={"direction": "out", "name": "eth0"},
+                 state="established, related", target="accept")
 
 # Allow all HTTP connections going in in
-iptables.setrule({"chain": "input", "interface": ("in", "eth0"), "dst-port": "80",
-         "state": ["new", "established", "related"], "action": "accept"})
+iptables.setrule(chain="input", interface={"direction": "in", "name": "eth0"}, dst="80",
+                 state="new, established, related", target="accept")
 
 # Drop all NEW connections coming in
-iptables.setrule({"chain": "input", "interface": ("in", "eth0"), "state": ["new"], "action": "drop"})
+iptables.setrule(chain="input", interface={"direction": "in", "name": "eth0"}, state="new", target="drop")
 
 # Generate the script
 iptables.generate()

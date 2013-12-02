@@ -8,6 +8,10 @@
   <component name="PyDocumentationSettings">
     <option name="myDocStringFormat" value="Epytext" />
   </component>
+  <component name="ReSTService">
+    <option name="workdir" value="C:\Users\silva_000\PycharmProjects\BlackSaltDoc" />
+    <option name="DOC_DIR" value="C:\Users\silva_000\PycharmProjects\BlackSaltDoc" />
+  </component>
   <component name="TestRunnerService">
     <option name="projectConfiguration" value="Unittests" />
     <option name="PROJECT_TEST_RUNNER" value="Unittests" />

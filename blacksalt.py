@@ -2,30 +2,10 @@
 BLACKSALT
 Author: 	Leslie.A.Cordell
 CreationDate:	2013/11/18
-ModifiedDate:	2013/11/18
-
+ModifiedDate:	2013/12/01
 
 The MIT License (MIT)
-
 Copyright (c) 2013 Leslie.A.Cordell
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
 """
 
 import os
@@ -199,13 +179,13 @@ class BlackSalt():
             if "_scriptfile" in vars() and _scriptfile and not _scriptfile.closed:
                 # Loop through our rules and write them to the file
                 for _rule in self.rules:
-                    _scriptfile.writelines("%s\n" % _rule)
+                    _scriptfile.writelines("%s%s\n" % (self.iptables, _rule))
                 _scriptfile.close()
 
         #  If printmode is on, print the rules to the screen
         if self.printmode:
             for _rule in self.rules:
-                print "%s" % _rule
+                print "%s%s" % (self.iptables, _rule)
 
         else:
             print "printmode and scriptfile disabled; enable to output"
@@ -279,233 +259,29 @@ class BlackSalt():
             print "Or a list of tuples i.e. [('INPUT', 'DROP'), ('OUTPUT', 'ACCEPT')]"
             return
 
-    ############
-    # SET RULE #
-    ############
-    def setrule(self, opts):
+    def setrule(self, **kwargs):
         """
-        This will take in a dictionary with options, construct and run an
-        IPTables command.
-        Available options are:
-            {
-                "interface": TUPLE ("interface STRING", "in/out"),
-                "port-type": STRING,
-                "dst-port": STRING/INT,
-                "src-port": STRING/INT,
-                "subnet": STRING,
-                "state": LIST, #Loads (-m state) module, accepts list like ["new", "established", "related"]#
-                "chain": STRING, #INPUT, OUTPUT, FORWARD
-                "icmp": STRING/INT # (will automatically set port type to ICMP) #
-                "action": STRING # ACCEPT, DROP, QUEUE, RETURN
-                }
+        @summary: The setrule function will generate an instance from the Rule class
+                  and append it to the rules array.
+                  Available options are:
+                        interface= dict i.e {"name": "eth1", "direction": "in"}
+                        protocol= str, list or comma delimited str
+                        dst= str or int
+                        src= str or int
+                        subnet= str
+                        state= list Loads (-m state) module, accepts list like ["new", "established", "related"]#
+                        chain= str INPUT, OUTPUT, FORWARD
+                        icmp= str/int 1-255
+                        target= str ACCEPT, DROP, QUEUE, RETURN
+        @param opts: dict
+        @rtype: None
         """
-        if type(opts) == dict:
-            # SET SOME CONSTANTS #
-            _ICMP = "icmp" in opts and opts["icmp"]
-            _CHAIN = "chain" in opts and opts["chain"]
-            _INTERFACE = "interface" in opts and opts["interface"]
-            _PORT_TYPE = "port-type" in opts and opts["port-type"]
-            _DST_PORT = "dst-port" in opts and opts["dst-port"]
-            _SRC_PORT = "src-port" in opts and opts["src-port"]
-            _BOTHPORTS = _DST_PORT and _SRC_PORT
-            _VALIDPORTS = not _BOTHPORTS and _PORT_TYPE
-            _SUBNET = "subnet" in opts and opts["subnet"]
-            _STATE = "state" in opts and opts["state"]
-            _ACTION = "action" in opts and opts["action"]
+        try:
+            _rule = Rule(**kwargs)
+            self.rules.append(_rule)
 
-            #####################################
-            # CATCH SOME ERRORS OR MODIFICATIONS#
-            #####################################
-            # If we get ICMP, set port-type to icmp
-            if _ICMP:
-                opts["port-type"] = "icmp"
-                _PORT_TYPE = True
-                # If we get both dst-port and src-port, then return an error
-            if _BOTHPORTS:
-                print "Error; both destination and source ports provided"
-                return
-                # If we get a src-port and a dst-port with icmp, then return an error
-            if (_DST_PORT or _SRC_PORT) and _ICMP:
-                print "Error; You can't use the icmp option with dst-port or src-port options"
-                return
-                # If we get a src-port and a dst-port, but not a port type, set the default port-type to tcp
-            if (_DST_PORT or _SRC_PORT) and not _PORT_TYPE:
-                opts["port-type"] = "tcp"
-                _PORT_TYPE = True
-                # If we now dont have both ports, set valid ports to true
-                if not _BOTHPORTS:
-                    _VALIDPORTS = True
-                # We need an action, return an error if we don't get one
-            if not _ACTION:
-                # Return an error if we get both source and destination ports
-                print "Error; an action option is required; accept, drop, queue, return"
-                return
-                # We need a chain, return an error if we don't get one
-            if not _CHAIN:
-                # Return an error if we get both source and destination ports
-                print "Error; a chain option is required; INPUT, OUTPUT, FORWARD"
-                return
-                # If our chain is INPUT, then set our interface to in
-            if opts["chain"].lower() == "input":
-                if _INTERFACE:
-                    # Set to -i if interface is tuple and chain is input
-                    if type(opts["interface"]) == tuple:
-                        opts["interface"] = ("in", opts["interface"][1])
-                # If our chain is OUTPUT, then set our interface to out
-            if opts["chain"].lower() == "output":
-                if _INTERFACE:
-                # Set to -o if interface is tuple and chain is output
-                    if type(opts["interface"]) == tuple:
-                        opts["interface"] = ("out", opts["interface"][1])
-
-            # Begin IPTables rule with Append
-            _rule = "%s -A" % self.iptables
-
-            ###########
-            #SET CHAIN#
-            ###########
-            # Set chain INPUT, OUTPUT, FORWARD
-            if _CHAIN:
-                # Chain must be a string
-                if type(opts["chain"]) == str:
-                    _rule = "%s %s" % (_rule, opts["chain"].upper())
-                else:
-                    print "Chain must be a string"
-                    return
-            # Return an error if we don't get a policy
-            else:
-                print "Must specify a chain; INPUT, OUTPUT, FORWARD etc"
-                return
-
-            ###############
-            #SET INTERFACE#
-            ###############
-            # Set interface if we get one
-            if _INTERFACE:
-                if type(opts["interface"]) == tuple:  # Options must be a tuple
-                    # If it's input, set the -i option
-                    if opts["interface"][0] == "in":
-                        _rule = "%s -i %s" % (_rule, opts["interface"][1])
-                    # If it's output, set the -i option
-                    elif opts["interface"][0] == "out":
-                        _rule = "%s -o %s" % (_rule, opts["interface"][1])
-                    # If it's not a correct option, display an error
-                    else:
-                        print "Interface must be a tuple with option in or out as first part i.e. ('in', 'eth0')"
-                        return
-                # If it's not a tuple, display an error
-                else:
-                    print "Interface must be a tuple with option in or out as first part i.e. ('in', 'eth0')"
-                    return
-
-                ###############
-                #SET PORT TYPE#
-                ###############
-                # Set port type if we have one
-                if _PORT_TYPE:
-                    # Port type must be a string
-                    if type(opts["port-type"]) == str:
-                        # Must be a valid option; tcp, udp, icmp, all
-                        if opts["port-type"] in ["tcp", "udp", "icmp", "all"]:
-                            _rule = "%s -p %s" % (_rule, opts["port-type"])
-                        else:
-                            print "Invalid port-type '%s'; must be tcp, udp, icmp or all" % opts["port-type"]
-                            return
-                    # It it's not a string, display an error
-                    else:
-                        print "Option port-type must be a string with option; tcp, udp, icmp or all"
-                        return
-
-            #####################
-            # SET DST/SRC PORTS #
-            #####################
-            if _VALIDPORTS:
-                # Port choice must be a string
-                try:
-                    if _SRC_PORT and type(int(opts["src-port"])) == int:
-                        _rule = "%s --sport %s" % (_rule, opts["src-port"])
-                    elif _DST_PORT and type(int(opts["dst-port"])) == int:
-                        _rule = "%s --dport %s" % (_rule, opts["dst-port"])
-                    else:
-                        print "Error with port choice"
-                        return
-                # If the string can't convert to an integer, throw an error
-                except ValueError:
-                    print "Port choice should be a valid integer or integer string"
-                    return
-
-            #################
-            # SET ICMP PORT #
-            #################
-            if _ICMP:
-                if type(int(opts["icmp"])) == int:
-                    _rule = "%s --icmp-type %s" % (_rule, opts["icmp"])
-                # If our icmp option doesn't convert to an integer, throw an error
-                else:
-                    print "Invalid ICMP type; must be a valid integer or integer string"
-                    return
-
-            ##############
-            # SET SUBNET #
-            ##############
-            if _SUBNET:
-                # Subnet must be a string
-                if type(opts["subnet"]) == str:
-                    _rule = "%s -s %s" % (_rule, opts["subnet"])
-                # If it's not a string, display an error
-                else:
-                    print "Subnet should be a valid subnet string, please refer to iptables(8) man page"
-                    return
-
-            #############
-            # SET STATE #
-            #############
-            if _STATE:
-                # State must be a list
-                if type(opts["state"]) == list:
-                    # Loop our states, use a counter
-                    _validstate = 0
-                    for _idx, _state in enumerate(opts["state"]):
-                        # If it's a valid state, then set it to upper case
-                        if _state.lower() in ["new", "established", "related", "invalid"]:
-                            opts["state"][_idx] = _state.upper()
-                            # Add one to our validstate counter
-                            _validstate += 1
-                        # If our valid state counter matches the length of our list, add the state string
-                    if _validstate == len(opts["state"]):
-                        _rule = "%s -m state --state %s" % (_rule, ",".join(opts["state"]))
-                    # Otherwise, report an error
-                    else:
-                        print
-                        return
-
-                # If it's not a list, display an error
-                else:
-                    print """State option must be a list of valid states i.e.
-                                            ['new', 'established', 'related', 'invalid']"""
-                    return
-
-            ##############
-            # SET ACTION #
-            ##############
-            if _ACTION:
-                if type(opts["action"]) == str:
-                    # If we get a valid option, then set it to uppercase and append it to our command
-                    if opts["action"].lower() in ["accept", "drop", "queue", "return"]:
-                        _rule = "%s -j %s" % (_rule, opts["action"].upper())
-                    else:
-                        print "Invalid action option; must be accept, drop, queue, return"
-                        return
-
-                # If it's not a string, display an error
-                else:
-                    print "Action option must be a string"
-                    return
-
-            # Store the rule in our rules list
-            self.rule = _rule
-            self.rules.append(self.rule)
-            return
+        except RuleError as err:
+            print err
 
 
 class Rule():
@@ -527,13 +303,18 @@ class Rule():
         self.icmp = None  # This should be an int for ICMP code
         self.target = None  # ACCEPT, DROP, QUEUE, RETURN
         self.protocolsfile = "C:\\windows\\System32\\drivers\\etc\\protocol" or "/etc/protocols"
+        self.warning = None  # If this rule gets a warning, it will be stored here.
         #: Set the default protocols
         self.set_default_protocols()
         #: Set the rules
         self.setup(**kwargs)
 
     def __repr__(self):
-        return "<BlackSalt Rule>"
+        _rule = self.generate()
+        if not _rule == "":
+            return _rule
+
+        return "No parameters set for rule"
 
     ##########
     # SET UP #
@@ -549,6 +330,9 @@ class Rule():
         """
         if "protocol" in kwargs:
             self.set_protocol(kwargs["protocol"])
+        if "chain" in kwargs:
+            #: We set chain before interface as interface makes a judgement based on the chain
+            self.set_chain(kwargs["chain"])
         if "interface" in kwargs:
             self.set_interface(kwargs["interface"])
         if "dst" in kwargs:
@@ -559,8 +343,6 @@ class Rule():
             self.set_subnet(kwargs["subnet"])
         if "state" in kwargs:
             self.set_state(kwargs["state"])
-        if "chain" in kwargs:
-            self.set_chain(kwargs["chain"])
         if "icmp" in kwargs:
             self.set_icmp(kwargs["icmp"])
         if "target" in kwargs:
@@ -853,13 +635,75 @@ class Rule():
 
         raise RuleError("set_interface needs to be called with a dictionary {'name': str, 'direction': str}")
 
+    ############
+    # GENERATE #
+    ############
+    def generate(self):
+        """
+        @summary: This will output the rule as a string using the currently defined
+                  settings. It will try tocleverly judge, by what is set, what is
+                  meant to be done. It takes no arguments and returns a string.
+        @rtype: str
+        @param: none
+        """
+        #: Initiate default and empty values
+        _protocol = None
+        _subnet = None
+        _interface = None
+        _dst_port = None
+        _src_port = None
+        _state = None
+        _chain = None
+        _icmp = None
+        _target = None
+
+        #: Check our variables and set the string values
+        if self.protocol and type(self.protocol) == str:
+            _protocol = "-p %s" % self.protocol
+        if self.interface and type(self.interface) == dict:  # {"name": None, "direction": None}
+            if "name" in self.interface and "direction" in self.interface:
+                if self.interface["direction"] == "in":
+                    _interface = "-i %s" % str(self.interface["name"])
+                if self.interface["direction"] == "out":
+                    _interface = "-o %s" % str(self.interface["name"])
+        if self.dst_port and (type(self.dst_port) == str or type(self.dst_port) == int):
+            _dst_port = "--dport %s" % str(self.dst_port)
+        if self.src_port and (type(self.src_port) == str or type(self.src_port) == int):
+            _src_port = "--sport %s" % str(self.src_port)
+        if self.subnet and type(self.subnet) == str:
+            _subnet = "-s %s" % self.subnet
+        if self.state and type(self.state) == list:
+            _state = "-m state --state %s" % ','.join(self.state)
+        if self.chain and type(self.chain) == str:
+            _chain = "-A %s" % self.chain
+        if self.icmp and type(self.icmp) == int:
+            _protocol = "-p icmp"
+            _dst_port = None
+            _src_port = None
+            _icmp = "--icmp-type %d" % self.icmp
+        if self.target and type(self.target) == str:
+            _target = "-j %s" % self.target.upper()
+
+        #: We'll now store these values in their generally expected order
+        _rule = [_chain, _interface, _protocol, _icmp, _subnet, _src_port, _dst_port, _state, _target]
+        _finalstr = ""
+        #: We'll loop through our values and then construct our final rule if they exists
+        for entry in _rule:
+            if entry:
+                _finalstr = "%s %s" % (_finalstr, entry)
+
+        return _finalstr
+
     ########
     # WARN #
     ########
     def warn(self, msg):
         """
-        @summary: Very simple function to print a warning
+        @summary: Very simple function to print a warning.
+                  Attaches warning to itself.
         @rtype: None
         @param msg: str (a warning message)
         """
-        print "Warning: %s" % msg
+        _msg = "Warning: %s" % msg
+        self.warning = _msg
+        print _msg
