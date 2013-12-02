@@ -36,10 +36,6 @@ for subnet in SUBNETS:
     iptables.setrule(chain="output", interface={"direction": "out", "name": "eth0"}, subnet=subnet,
                      target="accept", state="new, related, established")
 
-# Allow everything coming from estores
-iptables.setrule(chain="input", interface={"direction": "in", "name": "eth0"}, target="accept",
-                 subnet="69.10.153.3", state="new, established, related")
-
 # Allow ICMP Ping
 iptables.setrule(chain="input", interface={"direction": "in", "name": "eth0"}, target="accept",
                  state="new, related, established", icmp=8)

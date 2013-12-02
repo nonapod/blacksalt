@@ -264,15 +264,15 @@ class BlackSalt():
         @summary: The setrule function will generate an instance from the Rule class
                   and append it to the rules array.
                   Available options are:
-                        interface= dict i.e {"name": "eth1", "direction": "in"}
-                        protocol= str, list or comma delimited str
-                        dst= str or int
-                        src= str or int
-                        subnet= str
-                        state= list Loads (-m state) module, accepts list like ["new", "established", "related"]#
-                        chain= str INPUT, OUTPUT, FORWARD
-                        icmp= str/int 1-255
-                        target= str ACCEPT, DROP, QUEUE, RETURN
+                        interface= dict   i.e {"name": "eth1", "direction": "in"}
+                        protocol= str     i.e. "tcp"
+                        dst= str or int   i.e. 80
+                        src= str or int   i.e. 22
+                        subnet= str       i.e. 172.18.10.1 or 172.18.11.0/24 or 172.18.0.0/255.255.255.0
+                        state= list, srt or comma delimited str i.e. ["new", "established", "related"]#
+                        chain= str        i.e. INPUT, OUTPUT, FORWARD
+                        icmp= str/int 1-255   i.e. 8
+                        target= str       i.e. ACCEPT, DROP, QUEUE, RETURN
         @param opts: dict
         @rtype: None
         """
