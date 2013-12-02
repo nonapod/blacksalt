@@ -34,7 +34,7 @@ firewall.py script which is just a really basic example:
         chains.
         
 3. To set default policies, add the following, (assuming your instance is named iptables);
-    #! Order must be chain, policy
+    Order must be chain, policy
     iptables.policy("input", "drop")  # As two strings for one policy
     or
     iptables.policy(("input", "drop")) # As a tuple
@@ -42,7 +42,7 @@ firewall.py script which is just a really basic example:
     iptables.policy([("input", "drop"), ("output", "accept"), ("forward", "drop")]) # As a list of tuples
     
 3. Finally to set rules, (assuming your instance is named iptables);
-    #! To allow anything coming in on loopback
+    To allow anything coming in on loopback
     iptables.setrule(chain="input", interface={"name": "lo", "direction": "in"}, target="accept")
   
     Available options are:
