@@ -508,8 +508,10 @@ class Rule():
         #: If we get a list, check parameter against allowed and add them to state
         elif type(param) == list:
             for _state in param:
-                if type(_state) == str and _state.lower() in _allowed:
-                    self.state.append(_state.replace(" ", ""))
+                if type(_state) == str:
+                    _state = _state.strip()
+                    if type(_state) == str and _state.lower() in _allowed:
+                        self.state.append(_state.upper().replace(" ", ""))
 
             return
         else:
@@ -662,10 +664,13 @@ class Rule():
             _protocol = "-p %s" % self.protocol
         if self.interface and type(self.interface) == dict:  # {"name": None, "direction": None}
             if "name" in self.interface and "direction" in self.interface:
-                if self.interface["direction"] == "in":
-                    _interface = "-i %s" % str(self.interface["name"])
-                if self.interface["direction"] == "out":
-                    _interface = "-o %s" % str(self.interface["name"])
+                #: Make sure we get an interface name before we assign _interage or we'll
+                #: End up with i.e. -i None  or -o None
+                if self.interface["name"]:
+                    if self.interface["direction"] == "in":
+                        _interface = "-i %s" % str(self.interface["name"])
+                    if self.interface["direction"] == "out":
+                        _interface = "-o %s" % str(self.interface["name"])
         if self.dst_port and (type(self.dst_port) == str or type(self.dst_port) == int):
             _dst_port = "--dport %s" % str(self.dst_port)
         if self.src_port and (type(self.src_port) == str or type(self.src_port) == int):
