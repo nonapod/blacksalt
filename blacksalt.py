@@ -236,14 +236,14 @@ class BlackSalt():
         if type(opts) == tuple:
             # Construct the command only if tuple arguments are strings
             if type(opts[0]) == str and type(opts[1]) == str:
-                self.rule = "%s -P %s %s" % (self.iptables, opts[0].upper(), opts[1].upper())
+                self.rule = " -P %s %s" % (self.iptables, opts[0].upper(), opts[1].upper())
                 self.rules.append(self.rule)
                 return
             else:
                 print "Tuple values must be strings i.e. ('INPUT', 'DROP')"
         # If we get two strings as options
         elif type(opts) == str and type(opt2) == str:
-            self.rule = "%s -P %s %s" % (self.iptables, opts.upper(), opt2.upper())
+            self.rule = " -P %s %s" % (self.iptables, opts.upper(), opt2.upper())
             self.rules.append(self.rule)
             return
         # If we get a list of tuples, loop through the list, and call policy function recursively
