@@ -293,7 +293,7 @@ class Rule():
     """
     def __init__(self, **kwargs):
         self.protocol = None  # i.e tcp, udp, icmp
-        self.protocols = ["tcp", "udp", "icmp"]  # The 3 default protocols
+        self.protocols = ["tcp", "udp", "icmp", "all"]  # The 3 default protocols
         self.interface = {"name": None, "direction": None}
         self.dst_port = None
         self.src_port = None
