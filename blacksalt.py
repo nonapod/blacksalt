@@ -384,7 +384,7 @@ class Rule():
             _protocolsfile = open(self.protocolsfile, 'r').readlines()
             for _line in _protocolsfile:
                 if _line[0] not in ["#", "\w", "\n"]:
-                    _allowedprotocol = _line.split(" ")[0]
+                    _allowedprotocol = _line.split("\t")[0]
                     if _allowedprotocol not in self.protocols:
                         self.protocols.append(_allowedprotocol)
         else:
