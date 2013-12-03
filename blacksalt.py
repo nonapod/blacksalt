@@ -302,7 +302,7 @@ class Rule():
         self.chain = None
         self.icmp = None  # This should be an int for ICMP code
         self.target = None  # ACCEPT, DROP, QUEUE, RETURN
-        self.protocolsfile = "C:\\windows\\System32\\drivers\\etc\\protocol" or "/etc/protocols"
+        self.protocolsfile = "/etc/protocols"
         self.warning = None  # If this rule gets a warning, it will be stored here.
         #: Set the default protocols
         self.set_default_protocols()
