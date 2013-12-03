@@ -90,19 +90,19 @@ class BlackSalt():
             # If 'chains' is in the list
             if opt.lower() == "chains":
                 # Flush the chains
-                self.rule = "%s -X" % self.iptables
+                self.rule = "-X"
                 self.rules.append(self.rule)
                 return
 
             # If 'tables' is in the list
             if opt.lower() == "tables":
                 # Flush the chains
-                self.rule = "%s -F" % self.iptables
+                self.rule = "-F"
                 self.rules.append(self.rule)
                 return
             # Otherwise, flush the string as a chain name
             else:
-                self.rule = "%s -X %s" % (self.iptables, opt)
+                self.rule = "-X %s" % opt
                 self.rules.append(self.rule)
                 return
 
@@ -116,9 +116,9 @@ class BlackSalt():
         # If we get no options, then we will flush all chains and tables
         elif opt is None:
             # Flush the chains
-            self.rule = "%s -F" % self.iptables
+            self.rule = "-F"
             self.rules.append(self.rule)
-            self.rule = "%s -X" % self.iptables
+            self.rule = "-X"
             self.rules.append(self.rule)
             return
 
