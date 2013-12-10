@@ -64,6 +64,6 @@ firewall.py script which is just a really basic example:
     ```
                         
                         
-  A More indepth wiki to come as more stuff is added...
+  A More indepth wiki to come as more stuff is added, for now check firewall.py for an example script...
     
   
