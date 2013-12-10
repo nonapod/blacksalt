@@ -17,10 +17,10 @@ To generate simple rules however using what is available, you can do the followi
 firewall.py script which is just a really basic example:
 
 1. First import blacksalt and create an instance;
-    '''python
+    ```python
     from blacksalt import *
     iptables = BlackSalt()
-    '''
+    ```
 
     !!! Blacksalt takes 3 optional keyword arguments
         iptables="/directory/of/iptables/bin" this defaults to /sbin/iptables
