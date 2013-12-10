@@ -18,47 +18,52 @@ firewall.py script which is just a really basic example:
 
 1. First import blacksalt and create an instance;
     ```python
+    #Blacksalt takes 3 optional keyword arguments
+    #iptables="/directory/of/iptables/bin" this defaults to /sbin/iptables
+    #printmode=True  this defaults to true, when generating rules will print them to stdout
+    #scriptfile="./firewall" this defaults to False, when set it will output the rules to this file on generate
     from blacksalt import *
     iptables = BlackSalt()
     ```
 
-    !!! Blacksalt takes 3 optional keyword arguments
-        iptables="/directory/of/iptables/bin" this defaults to /sbin/iptables
-        printmode=True  this defaults to true, when generating rules will print them to stdout
-        scriptfile="./firewall" this defaults to False, when set it will output the rules to this file on generate
-
 2. To flush tables and chains simple add the following line, (assuming your instance is named iptables);
+    ```python
+    # With no arguments this will flush all tables and chains, with a string it will flush that
     iptables.flush()
-        
-    !!! With no arguments this will flush all tables and chains, with a string it will flush that
-        chain. If the string is tables, it will flush tables, if the string is chains, it will flush chains.
-        If the string is anything else, it will assume that is a chain and flush that chain.
-          A list can also be provided as an argument with a list of names inside; tables, chains or names of
-        chains.
+    # If the string is tables, it will flush the tables
+    iptables.flush('tables')
+    # If the string is chains, it will flush all chains
+    iptables.flush('chains')
+    # If the string is anything else, it will assume that is a chain and flush that chain.
+    iptables.flush('blacklist')
+    ```
         
 3. To set default policies, add the following, (assuming your instance is named iptables);
-    Order must be chain, policy
+    ```python
+    # Order must be chain, policy
     iptables.policy("input", "drop")  # As two strings for one policy
-    or
+    # or
     iptables.policy(("input", "drop")) # As a tuple
-    or
+    # or
     iptables.policy([("input", "drop"), ("output", "accept"), ("forward", "drop")]) # As a list of tuples
+    ```
     
 3. Finally to set rules, (assuming your instance is named iptables);
-    To allow anything coming in on loopback
+    ```python
+    #To allow anything coming in on loopback
     iptables.setrule(chain="input", interface={"name": "lo", "direction": "in"}, target="accept")
-  
-    Available options are:
-                        interface= dict   i.e {"name": "eth1", "direction": "in"}
-                        protocol= str     i.e. "tcp"
-                        dst= str or int   i.e. 80
-                        src= str or int   i.e. 22
-                        subnet= str       i.e. 172.18.10.1 or 172.18.11.0/24 or 172.18.0.0/255.255.255.0
-                        state= list, srt or comma delimited str i.e. ["new", "established", "related"]#
-                        chain= str        i.e. INPUT, OUTPUT, FORWARD
-                        icmp= str/int 1-255   i.e. 8
-                        target= str       i.e. ACCEPT, DROP, QUEUE, RETURN
+    #interface= dict   i.e {"name": "eth1", "direction": "in"}
+    #                    protocol= str     i.e. "tcp"
+    #                    dst= str or int   i.e. 80
+    #                    src= str or int   i.e. 22
+    #                    subnet= str       i.e. 172.18.10.1 or 172.18.11.0/24 or 172.18.0.0/255.255.255.0
+    #                    state= list, srt or comma delimited str i.e. ["new", "established", "related"]#
+    #                    chain= str        i.e. INPUT, OUTPUT, FORWARD
+    #                    icmp= str/int 1-255   i.e. 8
+    #                    target= str       i.e. ACCEPT, DROP, QUEUE, RETURN
+    ```
                         
-  A More indepth wiki to come...
+                        
+  A More indepth wiki to come as more stuff is added...
     
   
