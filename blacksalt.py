@@ -45,6 +45,7 @@ class BlackSalt():
         """
         #  If our params are a dictionary, set true
         self.rules = []
+        self.modules = []
         self.rule = ""
         self.printmode = True  # Default printmode to true unless set otherwise
         self.iptables = "/sbin/iptables"  # Default iptables bin to /sbin/iptables
@@ -177,6 +178,10 @@ class BlackSalt():
 
             #  If we have an open script file, write our rules out to it
             if "_scriptfile" in vars() and _scriptfile and not _scriptfile.closed:
+                # If we have any modules, add the modprobe lines
+                if len(self.modules):
+                    for _module in self.modules:
+                        print "modprobe %s" % _module
                 # Loop through our rules and write them to the file
                 for _rule in self.rules:
                     _scriptfile.writelines("%s%s\n" % (self.iptables, _rule))
@@ -184,6 +189,10 @@ class BlackSalt():
 
         #  If printmode is on, print the rules to the screen
         if self.printmode:
+            # Output the modules to probe first
+            if len(self.modules):
+                for _module in self.modules:
+                    print "modprobe %s" % _module
             for _rule in self.rules:
                 print "%s%s" % (self.iptables, _rule)
 
@@ -236,14 +245,14 @@ class BlackSalt():
         if type(opts) == tuple:
             # Construct the command only if tuple arguments are strings
             if type(opts[0]) == str and type(opts[1]) == str:
-                self.rule = " -P %s %s" % (self.iptables, opts[0].upper(), opts[1].upper())
+                self.rule = " -P %s %s" % (opts[0].upper(), opts[1].upper())
                 self.rules.append(self.rule)
                 return
             else:
                 print "Tuple values must be strings i.e. ('INPUT', 'DROP')"
         # If we get two strings as options
         elif type(opts) == str and type(opt2) == str:
-            self.rule = " -P %s %s" % (self.iptables, opts.upper(), opt2.upper())
+            self.rule = " -P %s %s" % (opts.upper(), opt2.upper())
             self.rules.append(self.rule)
             return
         # If we get a list of tuples, loop through the list, and call policy function recursively
@@ -259,6 +268,30 @@ class BlackSalt():
             print "Or a list of tuples i.e. [('INPUT', 'DROP'), ('OUTPUT', 'ACCEPT')]"
             return
 
+    ##############
+    # SET MODULE #
+    ##############
+    def setmodule(self, opts):
+        """
+        @summary: The setmodule function will take in a string or list of modules to add
+                  to the beginning of the rule output. For instance to enable connection
+                  tracking, pass in a string of "ip_conntrack". To enable ftp connection
+                  tracking as well, pass in a list ["ip_conntrack", "ip_conntrack_ftp"],
+        @param opts: str or list
+        @return: None
+        """
+        if type(opts) == str:
+            self.modules.append(opts)
+
+        if type(opts) == list:
+            for mod in opts:
+                self.setmodule(mod)
+
+        return
+
+    ###########
+    # SETRULE #
+    ###########
     def setrule(self, **kwargs):
         """
         @summary: The setrule function will generate an instance from the Rule class

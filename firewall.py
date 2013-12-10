@@ -21,6 +21,11 @@ iptables = BlackSalt()
 
 SUBNETS = ["192.168.10.0/24", "192.168.11.0/24", "192.168.12.0/24"]
 SERVICES = {"SSH": "22", "SMTP": "25", "HTTP": "80", "MYSQL": "3306"}
+
+# Here we'll add connection tracking and ftp connection tracking, they
+# can be added anywhere in a blacksalt script, they will always appear
+# at the top.
+iptables.setmodule(["ip_conntrack", "ip_conntrack_ftp"])
 # Flush tables
 iptables.flush()
 # Set default policies
